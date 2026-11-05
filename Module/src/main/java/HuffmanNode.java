@@ -17,6 +17,8 @@ public record HuffmanNode(int charAscii, int freq, HuffmanNode left, HuffmanNode
         this(charAscii, freq, null, null);
     }
 
+
+
     public boolean isLeaf() {
         return left == null && right == null;
     }
@@ -29,9 +31,13 @@ public record HuffmanNode(int charAscii, int freq, HuffmanNode left, HuffmanNode
      * Ties are broken using the ASCII value of the character: the node
      * with the smaller ASCII value comes first.
      */
-    public static boolean comesBefore(HuffmanNode a, HuffmanNode b) {
-        // TODO: implement
-        return false;
+    public static boolean comesBefore(HuffmanNode a, HuffmanNode b)
+    {
+        if (a.freq() != b.freq())
+        {
+            return a.freq() < b.freq();
+        }
+        return a.charAscii() < b.charAscii();
     }
 
     /**
@@ -43,9 +49,15 @@ public record HuffmanNode(int charAscii, int freq, HuffmanNode left, HuffmanNode
      * and b's frequencies. The new node's charAscii value is the smaller
      * of a's and b's charAscii values (used to break ties later on).
      */
-    public static HuffmanNode combine(HuffmanNode a, HuffmanNode b) {
-        // TODO: implement
-        return null;
+    public static HuffmanNode combine(HuffmanNode a, HuffmanNode b)
+    {
+        HuffmanNode left = comesBefore(a, b) ? a : b;
+        HuffmanNode right = (left == a) ? b : a;
+
+        int freq = a.freq() + b.freq();
+        int charAscii = Math.min(a.charAscii(), b.charAscii());
+
+        return new HuffmanNode(charAscii, freq, left, right);
     }
 
     /**

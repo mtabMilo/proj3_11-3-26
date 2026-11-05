@@ -32,9 +32,18 @@ public class Huffman {
      * Returns an int array of size NUM_CHARS, indexed by ASCII value, with
      * the count of each character (0 for characters that do not occur).
      */
-    public static int[] cntFreq(String filename) throws IOException {
+    public static int[] cntFreq(String filename) throws IOException
+    {
         int[] freq = new int[NUM_CHARS];
-        // TODO: implement
+
+        try (BufferedReader in = new BufferedReader(new FileReader(filename)))
+        {
+            int c;
+            while ((c=in.read()) != -1)
+            {
+                freq[c]++;
+            }
+        }
         return freq;
     }
 
@@ -48,8 +57,22 @@ public class Huffman {
      * HuffmanNode.comesBefore() as you insert (an "ordered list"), or a
      * PriorityQueue. How you implement this method depends on which you pick.
      */
-    public static void addNode(Collection<HuffmanNode> collection, HuffmanNode node) {
-        // TODO: implement
+    public static void addNode(Collection<HuffmanNode> collection, HuffmanNode node)
+    {
+        if (collection instanceof List)
+        {
+            List<HuffmanNode> list = (List<HuffmanNode>) collection;
+            int i = 0;
+            while (i < list.size() && HuffmanNode.comesBefore(list.get(i), node))
+            {
+                i++;
+            }
+            list.add(i, node);
+        }
+        else
+        {
+            collection.add(node);
+        }
     }
 
     /**
@@ -62,9 +85,26 @@ public class Huffman {
      * with a PriorityQueue, poll() it; for any other collection, find the
      * minimum node and remove it.
      */
-    public static HuffmanNode removeMin(Collection<HuffmanNode> collection) {
-        // TODO: implement
-        return null;
+    public static HuffmanNode removeMin(Collection<HuffmanNode> collection)
+    {
+        if (collection instanceof PriorityQueue)
+        {
+            return ((PriorityQueue<HuffmanNode>) collection).poll();
+        }
+
+        HuffmanNode min = null;
+        for (HuffmanNode n : collection)
+        {
+            if (min == null || HuffmanNode.comesBefore(n, min))
+            {
+                min = n;
+            }
+        }
+        if (min != null)
+        {
+            collection.remove(min);
+        }
+        return min;
     }
 
     /**
@@ -83,9 +123,31 @@ public class Huffman {
      *    one unique character), return a single leaf HuffmanNode for that
      *    character (no combine() call needed).
      */
-    public static HuffmanNode createHuffTree(int[] freq) {
-        // TODO: implement
-        return null;
+    public static HuffmanNode createHuffTree(int[] freq)
+    {
+        Collection<HuffmanNode> nodes = new PriorityQueue<>();
+
+        for (int i = 0; i < freq.length; i++)
+        {
+            if (freq[i] > 0)
+            {
+                addNode(nodes, new HuffmanNode(i, freq[i]));
+            }
+        }
+
+        if (nodes.isEmpty())
+        {
+            return null;
+        }
+
+        while (nodes.size() > 1)
+        {
+            HuffmanNode a = removeMin(nodes);
+            HuffmanNode b = removeMin(nodes);
+            addNode(nodes, HuffmanNode.combine(a, b));
+        }
+
+        return removeMin(nodes);
     }
 
     /**
@@ -100,11 +162,33 @@ public class Huffman {
      * left/right branch to build a code out of; huffmanEncode/huffmanDecode
      * handle that case entirely through the header.
      */
-    public static String[] createCode(HuffmanNode root) {
+    public static String[] createCode(HuffmanNode root)
+    {
         String[] codes = new String[NUM_CHARS];
         Arrays.fill(codes, "");
-        // TODO: implement
+
+        if (root == null || root.isLeaf())
+        {
+            return codes;
+        }
+
+        builldinIt(root, "", codes);
         return codes;
+    }
+
+    /*
+    createCode helper class, recurses through node
+    */
+    private static void builldinIt(HuffmanNode node, String path, String[] codes)
+    {
+        if (node.isLeaf())
+        {
+            codes[node.charAscii()] = path;
+            return;
+        }
+
+        builldinIt(node.left(), path + "0", codes);
+        builldinIt(node.right(), path + "1", codes);
     }
 
     /**
@@ -115,9 +199,21 @@ public class Huffman {
      *
      * Example: for the text "aaabbbbcc" this returns "97 3 98 4 99 2".
      */
-    public static String createHeader(int[] freq) {
-        // TODO: implement
-        return "";
+    public static String createHeader(int[] freq)
+    {
+        StringBuilder returns = new StringBuilder();
+        for (int i = 0; i< freq.length; i++)
+        {
+            if (freq[i] > 0)
+            {
+                if (!returns.isEmpty())
+                {
+                    returns.append(' ');
+                }
+                returns.append(i).append(' ').append(freq[i]);
+            }
+        }
+        return returns.toString();
     }
 
     /**
@@ -133,8 +229,39 @@ public class Huffman {
      *  - Input file with only one unique character: should contain only the
      *    header line (e.g. "97 5") and nothing else - no second line of code bits.
      */
-    public static void huffmanEncode(String inFile, String outFile) throws IOException {
-        // TODO: implement
+    public static void huffmanEncode(String inFile, String outFile) throws IOException
+    {
+        int[] freq = cntFreq(inFile);
+        String header = createHeader(freq);
+
+        try (BufferedWriter out = new BufferedWriter(new FileWriter(outFile)))
+        {
+            if (header.isEmpty())
+            {
+                return;
+            }
+
+            out.write(header);
+            out.write('\n');
+
+            HuffmanNode root = createHuffTree(freq);
+
+            if (root.isLeaf())
+            {
+                return;
+            }
+
+            String[] codes = createCode(root);
+
+            try (BufferedReader in = new BufferedReader(new FileReader(inFile)))
+            {
+                int c;
+                while ((c = in.read()) != -1)
+                {
+                    out.write(codes[c]);
+                }
+            }
+        }
     }
 
     /**
@@ -144,9 +271,24 @@ public class Huffman {
      *
      * Example: for the header "97 3 98 4 99 2", freq[97, 98, 99] == {3, 4, 2}.
      */
-    public static int[] parseHeader(String headerString) {
+    public static int[] parseHeader(String headerString)
+    {
         int[] freq = new int[NUM_CHARS];
-        // TODO: implement
+
+        if (headerString == null || headerString.isEmpty())
+        {
+            return freq;
+        }
+
+        String[] tokens = headerString.trim().split("\\s+");
+
+        for (int i = 0; i + 1 < tokens.length; i += 2)
+        {
+            int ascii = Integer.parseInt(tokens[i]);
+            int count = Integer.parseInt(tokens[i + 1]);
+            freq[ascii] = count;
+        }
+
         return freq;
     }
 
@@ -165,7 +307,55 @@ public class Huffman {
      * The header's count alone tells you how many times that character occurred,
      * so write it out that many times directly.
      */
-    public static void huffmanDecode(String encodedFile, String decodeFile) throws IOException {
-        // TODO: implement
+    public static void huffmanDecode(String encodedFile, String decodeFile) throws IOException
+    {
+        try (BufferedReader in = new BufferedReader(new FileReader(encodedFile)))
+        {
+            String header = in.readLine();
+
+            try (BufferedWriter out = new BufferedWriter(new FileWriter(decodeFile)))
+            {
+                if (header == null || header.trim().isEmpty())
+                {
+                    return;
+                }
+
+                int[] freq = parseHeader(header);
+                HuffmanNode root = createHuffTree(freq);
+
+                if (root.isLeaf())
+                {
+                    for (int i = 0; i < root.freq(); i++)
+                    {
+                        out.write(root.charAscii());
+                    }
+                    return;
+                }
+
+                HuffmanNode node = root;
+                int bit;
+                while ((bit = in.read()) != -1)
+                {
+                    if (bit == '0')
+                    {
+                        node = node.left();
+                    }
+                    else if (bit == '1')
+                    {
+                        node = node.right();
+                    }
+                    else
+                    {
+                        continue;
+                    }
+
+                    if (node.isLeaf())
+                    {
+                        out.write(node.charAscii());
+                        node = root;
+                    }
+                }
+            }
+        }
     }
 }
